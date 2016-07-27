@@ -31,7 +31,8 @@ exports.upload = function upload(url) {
 			return superagent
 				.post(`${freeboxUrl}/api/v3/downloads/add`)
 				.set('X-Fbx-App-Auth', sessionToken)
-				.query({
+				.type('form')
+				.send({
 					download_url: url,
 					username: serverUsername,
 					password: serverPassword
