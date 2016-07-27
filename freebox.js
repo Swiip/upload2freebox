@@ -5,10 +5,12 @@ const {HmacSHA1} = require('crypto-js');
 const {freeboxUrl, freeboxAppId, freeboxToken, serverUsername, serverPassword} = require('./conf');
 
 exports.login = function login() {
+	console.log('Login to', `${freeboxUrl}/api/v3/login/`);
 	return superagent
 		.get(`${freeboxUrl}/api/v3/login/`)
 		.observe()
 		.map(res => res.body.result.challenge)
+		.do(challenge => console.log('Login with', challenge, freeboxToken))
 		.flatMap(challenge => {
 			return superagent
 				.post(`${freeboxUrl}/api/v3/login/session/`)
@@ -17,12 +19,15 @@ exports.login = function login() {
 					password: HmacSHA1(challenge, freeboxToken).toString()
 				});
 		})
-		.map(res => res.body.result.session_token);
+		.map(res => res.body.result.session_token)
+		.do(token => console.log('Token', token));
 };
 
 exports.upload = function upload(url) {
+	console.log('Uploading', url);
 	return exports.login()
 		.flatMap(sessionToken => {
+			console.log('Upload to', `${freeboxUrl}/api/v3/downloads/add`);
 			return superagent
 				.post(`${freeboxUrl}/api/v3/downloads/add`)
 				.set('X-Fbx-App-Auth', sessionToken)
@@ -31,7 +36,8 @@ exports.upload = function upload(url) {
 					username: serverUsername,
 					password: serverPassword
 				});
-		});
+		})
+		.do(res => console.log('Upload response', res.body));
 };
 
   // reqwest({

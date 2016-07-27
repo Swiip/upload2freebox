@@ -18,6 +18,7 @@ superagent.Request.prototype.observe = function () {
 
 exports.watch = function watch() {
 	return Rx.Observable.create(observer => {
+		console.log('Watching directory', watchDirectory);
 		chokidar.watch(watchDirectory, {ignored: /[\/\\]\./})
 			.on('add', path => {
 				observer.next(path);
