@@ -1,7 +1,7 @@
 const superagent = require('superagent');
 const Rx = require('rxjs/Rx');
 const chokidar = require('chokidar');
-const {watchDirectory} = require('./conf');
+const {watchDirectory, watchIgnores} = require('./conf');
 
 superagent.Request.prototype.observe = function () {
 	return Rx.Observable.create(observer => {
@@ -18,8 +18,12 @@ superagent.Request.prototype.observe = function () {
 
 exports.watch = function watch() {
 	return Rx.Observable.create(observer => {
-		console.log('Watching directory', watchDirectory);
-		chokidar.watch(watchDirectory, {ignored: /[\/\\]\./})
+		const ignored = [/[\/\\]\./];
+		if (watchIgnores) {
+			ignored.push(...watchIgnores.split(','));
+		}
+		console.log('Watching directory', watchDirectory, 'ignoring', ignored);
+		chokidar.watch(watchDirectory, {ignored})
 			.on('add', path => {
 				observer.next(path);
 			})

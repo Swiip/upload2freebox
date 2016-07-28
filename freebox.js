@@ -2,7 +2,15 @@
 
 const superagent = require('superagent');
 const {HmacSHA1} = require('crypto-js');
-const {freeboxUrl, freeboxAppId, freeboxToken, serverUsername, serverPassword} = require('./conf');
+const {
+	freeboxUrl,
+	freeboxAppId,
+	freeboxToken,
+	serverUrl,
+	serverContext,
+	serverUsername,
+	serverPassword
+} = require('./conf');
 
 exports.login = function login() {
 	console.log('Login to', `${freeboxUrl}/api/v3/login/`);
@@ -23,40 +31,26 @@ exports.login = function login() {
 		.do(token => console.log('Token', token));
 };
 
-exports.upload = function upload(url) {
-	console.log('Uploading', url);
+exports.upload = function upload(download_url) {
 	return exports.login()
 		.flatMap(sessionToken => {
-			console.log('Upload to', `${freeboxUrl}/api/v3/downloads/add`);
+			const relative = download_url.replace(serverUrl + serverContext, '');
+			const directory = relative.substring(0, relative.lastIndexOf('/'));
+			const download_dir = new Buffer(`/Disque dur/Téléchargements/${directory}`).toString('base64');
+			console.log('Upload', download_url, 'to', directory);
 			return superagent
 				.post(`${freeboxUrl}/api/v3/downloads/add`)
 				.set('X-Fbx-App-Auth', sessionToken)
 				.type('form')
 				.send({
-					download_url: url,
+					download_url,
+					download_dir,
 					username: serverUsername,
 					password: serverPassword
 				});
 		})
 		.do(res => console.log('Upload response', res.body));
 };
-
-  // reqwest({
-  //   url: config.freebox.url + '/api/v3/downloads/add',
-  //   method: 'POST',
-  //   headers: {
-  //     'X-Fbx-App-Auth': sessionToken
-  //   },
-  //   data: {
-  //     download_url: url,
-  //     username: serverUsername,
-  //     password: serverPassword
-  //   }
-  // }).then(function(response) {
-  //   console.log('download response', response);
-	//
-  //   callback(response);
-  // });
 
 exports.token = function token() {
 	return superagent
