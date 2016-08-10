@@ -1,5 +1,6 @@
 /* eslint camelcase: 0, babel/new-cap: 0 */
 
+const Rx = require('rxjs/Rx');
 const superagent = require('superagent');
 const {HmacSHA1} = require('crypto-js');
 const {
@@ -12,23 +13,52 @@ const {
 	serverPassword
 } = require('./conf');
 
+let sessionPending = false;
+let sessionToken = null;
+let sessionDate = null;
+let sessionObservers = [];
+
 exports.login = function login() {
-	console.log('Login to', `${freeboxUrl}/api/v3/login/`);
-	return superagent
-		.get(`${freeboxUrl}/api/v3/login/`)
-		.observe()
-		.map(res => res.body.result.challenge)
-		.do(challenge => console.log('Login with', challenge, freeboxToken))
-		.flatMap(challenge => {
-			return superagent
-				.post(`${freeboxUrl}/api/v3/login/session/`)
-				.send({
-					app_id: freeboxAppId,
-					password: HmacSHA1(challenge, freeboxToken).toString()
+	if (sessionToken === null && sessionPending === false &&
+		(sessionDate === null || sessionDate.getTime() + (60 * 60 * 100) < new Date().getTime())) {
+		console.log('Login to', `${freeboxUrl}/api/v3/login/`);
+		sessionPending = true;
+		sessionDate = new Date();
+		return superagent
+			.get(`${freeboxUrl}/api/v3/login/`)
+			.observe()
+			.map(res => res.body.result.challenge)
+			.do(challenge => console.log('Login with', challenge, freeboxToken))
+			.flatMap(challenge => {
+				return superagent
+					.post(`${freeboxUrl}/api/v3/login/session/`)
+					.send({
+						app_id: freeboxAppId,
+						password: HmacSHA1(challenge, freeboxToken).toString()
+					});
+			})
+			.map(res => res.body.result.session_token)
+			.do(token => {
+				sessionToken = token;
+				sessionPending = false;
+				sessionObservers.forEach(observer => {
+					observer.next(token);
+					observer.complete();
 				});
-		})
-		.map(res => res.body.result.session_token)
-		.do(token => console.log('Token', token));
+				sessionObservers = [];
+				console.log('Token', token);
+			});
+	}
+
+	if (sessionToken === null && sessionPending === true) {
+		console.log('Return session waiting');
+		return Rx.Observable.create(observer => {
+			sessionObservers.push(observer);
+		});
+	}
+
+	console.log('Return session token');
+	return Rx.Observable.result(sessionToken);
 };
 
 exports.upload = function upload(download_url) {
