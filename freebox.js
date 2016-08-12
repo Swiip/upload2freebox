@@ -13,16 +13,12 @@ const {
 	serverPassword
 } = require('./conf');
 
-let sessionPending = false;
 let sessionToken = null;
 let sessionDate = null;
-let sessionObservers = [];
 
 exports.login = function login() {
-	if (sessionToken === null && sessionPending === false &&
-		(sessionDate === null || sessionDate.getTime() + (60 * 60 * 100) < new Date().getTime())) {
+	if (sessionToken === null && (sessionDate === null || sessionDate.getTime() + (60 * 60 * 100) < new Date().getTime())) {
 		console.log('Login to', `${freeboxUrl}/api/v3/login/`);
-		sessionPending = true;
 		sessionDate = new Date();
 		return superagent
 			.get(`${freeboxUrl}/api/v3/login/`)
@@ -40,25 +36,12 @@ exports.login = function login() {
 			.map(res => res.body.result.session_token)
 			.do(token => {
 				sessionToken = token;
-				sessionPending = false;
-				sessionObservers.forEach(observer => {
-					observer.next(token);
-					observer.complete();
-				});
-				sessionObservers = [];
 				console.log('Token', token);
 			});
 	}
 
-	if (sessionToken === null && sessionPending === true) {
-		console.log('Return session waiting');
-		return Rx.Observable.create(observer => {
-			sessionObservers.push(observer);
-		});
-	}
-
 	console.log('Return session token');
-	return Rx.Observable.result(sessionToken);
+	return Rx.Observable.of(sessionToken);
 };
 
 exports.upload = function upload(download_url) {
