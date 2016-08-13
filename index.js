@@ -5,16 +5,16 @@ const {watchDirectory, serverUrl, serverContext} = require('./conf');
 
 const controller = new Rx.Subject();
 
-const token = Rx.Observable.timer(0, 60 * 60 * 1000)
-	.flatMap(() => login());
+const token = Rx.Observable.timer(0, 5 * 1000)
+	.flatMap(() => login())
+	.publish();
 
 watch()
 	.zip(controller, x => x)
 	.do(path => console.log('Watched', path))
 	.map(path => path.replace(watchDirectory, serverUrl + serverContext))
 	.do(url => console.log('Rewrite', url))
-	.combineLatest(token, (url, token) => ({url, token}))
-	.distinctUntilChanged((a, b) => a.url === b.url)
+	.withLatestFrom(token, (url, token) => ({url, token}))
 	.flatMap(({url, token}) => upload(url, token))
 	.do(() => controller.next())
 	.subscribe(
@@ -23,4 +23,9 @@ watch()
 		() => console.log('completed')
 	);
 
-controller.next();
+token
+	.take(1)
+	.do(() => controller.next())
+	.subscribe();
+
+token.connect();
