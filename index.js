@@ -5,7 +5,7 @@ const {watchDirectory, serverUrl, serverContext} = require('./conf');
 
 const controller = new Rx.Subject();
 
-const token = Rx.Observable.timer(0, 5 * 1000)
+const token = Rx.Observable.timer(0, 60 * 60 * 1000)
 	.flatMap(() => login())
 	.publish();
 
